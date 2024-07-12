@@ -348,7 +348,8 @@ void app_main(void)
   dev->cam_ctrl.cam_vs_eof_en = 0;  // 1: CAM_VSYNC to generate in_suc_eof. 0: in_suc_eof is controlled by cam_rec_data_bytelen  - we are using in_suc_eof
 
   // this is important - the number of bytes to read before generating the GMDA in_suc_eof interrupt
-  dev->cam_ctrl1.cam_rec_data_bytelen = dma_node_buffer_size;
+  // cam_rec_data_bytelen: Configure camera received data byte length. When the length of received data reaches this value + 1, GDMA in_suc_eof_int is triggered.
+  dev->cam_ctrl1.cam_rec_data_bytelen = dma_node_buffer_size - 1;
 
   dev->cam_ctrl1.cam_line_int_num = 0;    // The number of hsyncs that generate hs interrupts
   dev->cam_ctrl1.cam_clk_inv = 0;         // do not invert master clock
