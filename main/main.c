@@ -114,11 +114,11 @@ void app_main(void)
 {
   // define input and output pins for using camera peripheral
   // for this example we are using just the master clock pin
-  int masterClockPin = GPIO_NUM_17;
-  // int pixelClockPin = GPIO_NUM_18;
-  // int vSyncPin = GPIO_NUM_21;
-  // int hSyncPin = GPIO_NUM_33;
-  // int hSyncEnablePin = GPIO_NUM_34;
+  int masterClockPin = GPIO_NUM_0;
+  // int pixelClockPin = GPIO_NUM_17;
+  // int vSyncPin = GPIO_NUM_18;
+  // int hSyncPin = GPIO_NUM_21;
+  // int hSyncEnablePin = GPIO_NUM_33;
 
   lcd_cam_dev_t *dev = &LCD_CAM;
 
