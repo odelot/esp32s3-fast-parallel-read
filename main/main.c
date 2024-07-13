@@ -9,6 +9,17 @@
  *
  * It is set to low speed (157480 Hz) to make it easier to understand the code and debug it. If you want to increase the read speed you need
  * to change the number of DMA descriptors and the size of each descriptor. Also, you will need to remove code that is used for debugging / testing.
+ * 
+ * The way cam_bit_order and cam_byte_order are set, together with the fact that ESP32 is a little-endian chip, makes the data be read as unsigned words
+ * where the first configured input pin (in this case GPIO_NUM_1) is the most significant bit of the word.
+ * 
+ * Example with this code configuration (cam_bit_order = 1 and cam_byte_order = 0):
+ * 
+ *  16 bit word to read: 0x0F51 (or 3921 in decimal)
+ *    Binary to be read: 0   0   0   0   1   1   1   1   0   1   0   1   0   0   0   1 
+ *            GPIO pins: 1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16
+ * 
+ * 
  */
 #include <math.h>
 
