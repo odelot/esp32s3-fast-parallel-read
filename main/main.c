@@ -4,6 +4,11 @@
  * @date 2021-07-01
  *
  * The goal is be able to fast read data in parallel without CPU load using (G)DMA. G stands for General Purpose DMA
+ *
+ * This example helps understand how we can use the camera peripheral to read data in parallel and use GDMA to transfer the data to memory.
+ *
+ * It is set to low speed (157480 Hz) to make it easier to understand the code and debug it. If you want to increase the read speed you need
+ * to change the number of DMA descriptors and the size of each descriptor. Also, you will need to remove code that is used for debugging / testing.
  */
 #include <math.h>
 
@@ -46,9 +51,10 @@ dma_descriptor_t *dma_descriptors;
 uint8_t *dma_buffer;
 int dma_channel_id = -1;
 
-// 2000 descriptors of 2 bytes each (for 16 bit read) (you can change this)
-uint32_t dma_node_buffer_size = 2;
-uint32_t dma_node_cnt = 2000;
+// N DMA descriptors of M bytes each (you can change this - it matters for higher read speeds, since it impacts the number of interrupts generated)
+// the max value for DMA_node_buffer_size is 4092, but you can use many descriptors until you fill the DMA memory limit (480KB of internal memory at most)
+uint32_t dma_node_buffer_size = 2; // max 4092
+uint32_t dma_node_cnt = 2;         // max 117 for internal ram - I set to 2 for testing, since it easy to spot the DMA descriptors flipping (from 0 to 1 and then back to 0 as it is a circular buffer)
 
 /**
  * @brief snippet variables used for debugging / testing
@@ -58,6 +64,7 @@ uint32_t dma_node_cnt = 2000;
 volatile uint16_t last_word_to_send = 0;
 volatile uint16_t word_to_send = 0;
 volatile uint32_t dma_eof_address = 0;
+volatile int dma_descriptor_idx = -1;
 
 const char *MAIN_TAG = "16bits_parallel_read_dma";
 
@@ -104,8 +111,17 @@ static void IRAM_ATTR dma_in_suc_eof_isr(void *arg)
     // for debugging / testing, we are storing the last word read and the descriptor address that triggered the interrupt
     dma_eof_address = GDMA.channel[dma_channel].in.suc_eof_des_addr;
     uint16_t *eof_dma_buffer = (uint16_t *)((dma_descriptor_t *)dma_eof_address)->buffer;
+
+    // find the descriptor index of the last word read - REMOVE THIS FOR HIGHER SPEEDS - it is just for debugging / understanding what is going on
+    for (int i = 0; i < dma_node_cnt; i++)
+    {
+      if (((uint32_t)&dma_descriptors[i]) == (dma_eof_address))
+      {
+        dma_descriptor_idx = i;
+      }
+    }
     word_to_send = eof_dma_buffer[0];
-    // TODO: send to queue
+    // send to queue if you need to process the data in another task and want to avoid reading DMA data outside the interrupt (not recommended)
   }
   GDMA.channel[dma_channel].in.int_clr.in_suc_eof = 1; // clear interrupt
 }
@@ -134,11 +150,11 @@ void app_main(void)
   // 1. Configure clock according to Section 29.3.3. Note that in slave mode, the module clock frequency
   // should be two times faster than the PCLK frequency of the image sensor.
 
-  // configure to read at 200kHz
+  // configure to read at _freq_read Hz
   uint32_t div_a, div_b, div_n;
   div_a = 0;                                                 // max 64
   div_b = 0;                                                 // max 64
-  div_n = 200;                                               // max 256
+  div_n = 254;                                               // max 256
   _freq_read = (40 * 1000 * 1000) / (div_n + div_b / div_a); // just used for logging
   ESP_LOGD(MAIN_TAG, "freq_read %d Hz", _freq_read);
   ESP_LOGD(MAIN_TAG, "clock div a %d", div_a);
@@ -398,35 +414,24 @@ void app_main(void)
   // throughput on the interface is less than GDMA total data bandwidth of 80 MB/s. Note the default
   // frequency of APB_CLK is 80 MHz here. For more information, see Chapter 7 Reset and Clock.
 
-  ESP_LOGI(MAIN_TAG, "Camera started");
-
   // workaround to start the camera reading, eventhough we are not using the vsync interrupt ¯\_(ツ)_/¯
+  esp_rom_delay_us(100);
   gpio_matrix_in(GPIO_MATRIX_CONST_ZERO_INPUT, CAM_V_SYNC_IDX, false);
   gpio_matrix_in(GPIO_MATRIX_CONST_ONE_INPUT, CAM_V_SYNC_IDX, false);
 
-  // loop for testing
+  ESP_LOGI(MAIN_TAG, "16bit parallel read started at %d Hz", _freq_read);
+
+  // loop for testing / dubugging / understanding the code - you can remove this 
   while (1)
   {
     // print the last word read from DMA interrupt if it is different from the last one
     if (word_to_send != last_word_to_send)
     {
-      // find the descriptor index of the last word read
-      int dma_descriptor_idx = -1;
-      for (int i = 0; i < dma_node_cnt; i++)
-      {
-        if (((uint32_t)&dma_descriptors[i] & 0xfffff) == (dma_eof_address & 0xfffff))
-        {
-          dma_descriptor_idx = i;
-        }
-      }
-
       // log the word read and its descriptor index
       ESP_LOGI(MAIN_TAG, "word to send: %d  dma_descriptor %d:%p", word_to_send, dma_descriptor_idx, dma_eof_address);
       last_word_to_send = word_to_send;
     }
 
-    // delay is random to simulate a real application (and to make sure it is using all the DMA descriptors)
-    int delay = 50 + (rand() % 100);
-    vTaskDelay(pdMS_TO_TICKS(delay));
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
 }
