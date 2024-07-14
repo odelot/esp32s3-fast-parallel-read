@@ -9,17 +9,17 @@
  *
  * It is set to low speed (157480 Hz) to make it easier to understand the code and debug it. If you want to increase the read speed you need
  * to change the number of DMA descriptors and the size of each descriptor. Also, you will need to remove code that is used for debugging / testing.
- * 
+ *
  * The way cam_bit_order and cam_byte_order are set, together with the fact that ESP32 is a little-endian chip, makes the data be read as unsigned words
  * where the first configured input pin (in this case GPIO_NUM_1) is the most significant bit of the word.
- * 
+ *
  * Example with this code configuration (cam_bit_order = 1 and cam_byte_order = 0):
- * 
+ *
  *  16 bit word to read: 0x0F51 (or 3921 in decimal)
- *    Binary to be read: 0   0   0   0   1   1   1   1   0   1   0   1   0   0   0   1 
+ *    Binary to be read: 0   0   0   0   1   1   1   1   0   1   0   1   0   0   0   1
  *            GPIO pins: 1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16
- * 
- * 
+ *
+ *
  */
 #include <math.h>
 
@@ -162,11 +162,28 @@ void app_main(void)
   // should be two times faster than the PCLK frequency of the image sensor.
 
   // configure to read at _freq_read Hz
+
+  // choose source clock for camera peripheral (40, 160 or 240 MHz)  // 0= disabled  // 1=XTAL CLOCK 40MHz / 2=240MHz / 3=160MHz
+  uint8_t clksel = 1;
+
+  // define clk_freq_mhz according to clksel just for logging / defining the _freq_read variable
+  uint8_t clk_freq_mhz = 40;
+  if (clksel == 2)
+  {
+    clk_freq_mhz = 240;
+  }
+  else if (clksel == 3)
+  {
+    clk_freq_mhz = 160;
+  }
+
+  // define div_a, div_b and div_n according to the clock frequency
   uint32_t div_a, div_b, div_n;
-  div_a = 0;                                                 // max 64
-  div_b = 0;                                                 // max 64
-  div_n = 254;                                               // max 256
-  _freq_read = (40 * 1000 * 1000) / (div_n + div_b / div_a); // just used for logging
+  div_a = 0;   // max 64
+  div_b = 0;   // max 64
+  div_n = 254; // max 256
+
+  _freq_read = (clk_freq_mhz * 1000 * 1000) / div_n; // just used for logging - ignoring the div_a and div_b for now
   ESP_LOGD(MAIN_TAG, "freq_read %d Hz", _freq_read);
   ESP_LOGD(MAIN_TAG, "clock div a %d", div_a);
   ESP_LOGD(MAIN_TAG, "clock div b %d", div_b);
@@ -185,7 +202,7 @@ void app_main(void)
   dev->cam_ctrl1.cam_reset = 1; // reset camera bus
 
   // config camera clock
-  dev->cam_ctrl.cam_clk_sel = 1; // 0= disabled  // 1=XTAL CLOCK / 2=240MHz / 3=160MHz
+  dev->cam_ctrl.cam_clk_sel = clksel;
   dev->cam_ctrl.cam_clkm_div_a = div_a;
   dev->cam_ctrl.cam_clkm_div_b = div_b;
   dev->cam_ctrl.cam_clkm_div_num = div_n;
@@ -432,7 +449,7 @@ void app_main(void)
 
   ESP_LOGI(MAIN_TAG, "16bit parallel read started at %d Hz", _freq_read);
 
-  // loop for testing / dubugging / understanding the code - you can remove this 
+  // loop for testing / dubugging / understanding the code - you can remove this
   while (1)
   {
     // print the last word read from DMA interrupt if it is different from the last one
