@@ -445,6 +445,7 @@ void app_main(void)
   // workaround to start the camera reading, eventhough we are not using the vsync interrupt ¯\_(ツ)_/¯
   esp_rom_delay_us(100);
   gpio_matrix_in(GPIO_MATRIX_CONST_ZERO_INPUT, CAM_V_SYNC_IDX, false);
+  esp_rom_delay_us(100);
   gpio_matrix_in(GPIO_MATRIX_CONST_ONE_INPUT, CAM_V_SYNC_IDX, false);
 
   ESP_LOGI(MAIN_TAG, "16bit parallel read started at %d Hz", _freq_read);
