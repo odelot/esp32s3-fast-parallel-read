@@ -17,10 +17,11 @@ The speed is set to a low rate (157,480 Hz) to make the code easier to understan
 The configuration of cam_bit_order and cam_byte_order, combined with the fact that the ESP32 is a little-endian chip, results in the data being read as unsigned words. In this configuration, the first input pin (GPIO_NUM_1) is read as the most significant bit of the word.
 
 Example with this code configuration (cam_bit_order = 1 and cam_byte_order = 0):
-
+```
   16 bit word to read: 0x0F51 (or 3921 in decimal)
     Binary to be read: 0   0   0   0   1   1   1   1   0   1   0   1   0   0   0   1 
             GPIO pins: 1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16
+```
 
 ## Folder contents
 
