@@ -1,3 +1,6 @@
+| Supported Targets |  ESP32-S3 |
+| ----------------- |  -------- | 
+
 # ESP32S3 Fast Parallel Read
 
 This code provides a straightforward example of how to read 16 bits in parallel using DMA on the ESP32S3.
